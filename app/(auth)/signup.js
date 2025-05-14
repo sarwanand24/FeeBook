@@ -33,16 +33,12 @@ export default function SignupScreen() {
     setLoading(true);
     try {
       const response = await axios.post(
-        "https://6873-47-11-73-167.ngrok-free.app/api/v1/teachers/register",
+        "https://feebook-server.onrender.com/api/v1/teachers/register",
         {
           fullName,
           email,
           mobileNo,
-          tutionName,
-          subjects: subjects.map(sub => ({
-            name: sub.name,
-            fee: parseFloat(sub.fee) || 0,
-          })),
+          tutionName
         }
       );
   

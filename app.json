@@ -4,18 +4,23 @@
     "slug": "FeeBook",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/icon2.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "alexander2004",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/androidicon2.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.alexander_200424.FeeBook"
     },
     "web": {
       "bundler": "metro",
@@ -27,15 +32,22 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
+          "image": "./assets/images/splashScreen.png",
+          "resizeMode": "cover",
           "backgroundColor": "#ffffff"
         }
       ]
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "2de9b1ff-a764-482b-88d4-e69a2cfcd16a"
+      }
     }
   }
 }

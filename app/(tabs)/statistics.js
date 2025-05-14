@@ -40,7 +40,7 @@ const RevenueScreen = () => {
       const teacher = JSON.parse(teacherData);
 
       const response = await axios.get(
-        `https://e48f-2409-4061-112-111f-5462-9f8c-c86-a7f1.ngrok-free.app/api/v1/teachers/revenue/${teacher._id}`,
+        `https://feebook-server.onrender.com/api/v1/teachers/revenue/${teacher._id}`,
         { params: { month: selectedMonth, year: selectedYear } }
       );
 

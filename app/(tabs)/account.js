@@ -23,7 +23,7 @@ export default function AccountSettings() {
   const fetchTeacherDetails = async (teacherId) => {
     try {
       setLoading(true);
-      const response = await fetch(`https://e48f-2409-4061-112-111f-5462-9f8c-c86-a7f1.ngrok-free.app/api/v1/teachers/${teacherId}`);
+      const response = await fetch(`https://feebook-server.onrender.com/api/v1/teachers/${teacherId}`);
       const data = await response.json();
       setTeacher(data);
       setUpdatedTeacher(data);
@@ -39,7 +39,7 @@ export default function AccountSettings() {
       const teacherData = await AsyncStorage.getItem("Teacherdata");
       const teacher = JSON.parse(teacherData);
       setLoading(true);
-      const response = await fetch(`https://e48f-2409-4061-112-111f-5462-9f8c-c86-a7f1.ngrok-free.app/api/v1/teachers/${teacher._id}`, {
+      const response = await fetch(`https://feebook-server.onrender.com/api/v1/teachers/${teacher._id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -133,7 +133,7 @@ export default function AccountSettings() {
                 <Text style={styles.value}>{teacher.mobileNo}</Text>
               </View>
               <View style={styles.detailsContainer}>
-                <Text style={styles.label}>Tuition:</Text>
+                <Text style={styles.label}>Tuition Name:</Text>
                 <Text style={styles.value}>{teacher.tutionName}</Text>
               </View>
               <TouchableOpacity
