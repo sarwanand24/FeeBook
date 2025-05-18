@@ -1,16 +1,97 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   View, Text, TextInput, TouchableOpacity, Alert, StyleSheet, ScrollView, ActivityIndicator,
-  FlatList
+  FlatList, Modal
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import axios from 'axios';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Picker } from '@react-native-picker/picker';
+import { FontAwesome } from '@expo/vector-icons'; // or any icon library you're using
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 const StudentDetails = () => {
   const { id } = useLocalSearchParams(); // Get studentId from URL
   const router = useRouter();
+
+  const [showJoiningDatePicker, setShowJoiningDatePicker] = useState(false);
+  const [showFeePicker, setShowFeePicker] = useState(false);
+  const [feeFlag, setFeeFlag] = useState(false);
+
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  function FeeMonthYearPicker({ feesData, setFeesData, autoOpen = false }) {
+    const [showPicker, setShowPicker] = useState(autoOpen);
+
+    const monthYearOptions = useMemo(() => {
+      const options = [];
+      const start = new Date(feesData.joinedDate);
+      console.log('log of feesdata and then student data-->', feesData, 'heress student data-->', student)
+      const end = new Date();
+      start.setDate(1);
+      start.setHours(0, 0, 0, 0); // ⬅️ Fix here
+      end.setDate(1);
+      end.setHours(0, 0, 0, 0);
+
+      console.log('end date--->', end)
+
+      while (start <= end) {
+        options.push({
+          label: `${monthNames[start.getMonth()]} ${start.getFullYear()}`,
+          month: start.getMonth(),
+          year: start.getFullYear()
+        });
+        start.setMonth(start.getMonth() + 1);
+        console.log('start end months-->', start, end)
+      }
+
+      console.log('options------->', options)
+
+      return options;
+    }, [feesData.joinedDate]);
+
+    const handleSelect = (option) => {
+      const joinedDate = new Date(feesData.joinedDate);
+      const newDate = new Date(option.year, option.month, joinedDate.getDate() + 1);
+      console.log('new date ----', newDate)
+      setFeesData({ ...feesData, feePaidUntil: newDate });
+      setShowPicker(false);
+    };
+
+    return (
+      <View>
+          <Text style={styles.dateText}>
+            Fee Paid Until: {monthNames[feesData.feePaidUntil?.getMonth()]} {feesData.feePaidUntil?.getFullYear()}
+          </Text>
+
+        <Modal visible={showPicker} animationType="slide" transparent={true}>
+          <View style={styles.modalOverlay2}>
+            <View style={styles.modalContainer2}>
+              <Text style={styles.modalTitle2}>Select Fee Month</Text>
+
+              <FlatList
+                data={monthYearOptions.slice().reverse()}
+                keyExtractor={(item, index) => `${item.month}-${item.year}`}
+                renderItem={({ item }) => (
+                  <TouchableOpacity style={styles.option} onPress={() => handleSelect(item)}>
+                    <Text style={styles.optionText}>{item.label}</Text>
+                  </TouchableOpacity>
+                )}
+              />
+
+              <TouchableOpacity style={styles.cancelButton} onPress={() => setShowPicker(false)}>
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+      </View>
+    );
+  }
 
   const [student, setStudent] = useState({
     fullName: "loading",
@@ -20,6 +101,10 @@ const StudentDetails = () => {
     subjects: "loading",
     board: 'loading',
     fee: null,
+  });
+  const [feesData, setFeesData] = useState({
+    joinedDate: null,
+    feePaidUntil: null,
   });
   const [feeRecords, setFeeRecords] = useState([]);
   const [dueFee, setDueFee] = useState(0);
@@ -38,7 +123,7 @@ const StudentDetails = () => {
   useEffect(() => {
     console.log('length----->>>', formattedRecords.length)
     console.log('Due fesss---->>>', formattedRecords.length * student.fee)
-      setDueFee(formattedRecords.length * student.fee)
+    setDueFee(formattedRecords.length * student.fee)
   }, [formattedRecords])
 
   console.log('Paid Months Year-->', paidMonths)
@@ -68,11 +153,6 @@ const StudentDetails = () => {
       setLoading(false);
     }
   };
-
-  const monthNames = [
-    "January", "February", "March", "April", "May", "June",
-    "July", "August", "September", "October", "November", "December"
-  ];
 
   const calculateDueFees = (records, monthlyFee) => {
     if (!records || records.length === 0) {
@@ -180,6 +260,54 @@ const StudentDetails = () => {
     } finally { setLoading(false) }
   };
 
+  const generateFeeRecords = (joiningDate, feePaidUntil, feeAmount) => {
+    let records = [];
+    let currentDate = new Date(joiningDate);
+    const endDate = new Date(feePaidUntil);
+    console.log('feepaiduntildate---', feePaidUntil)
+    while (currentDate <= endDate) {
+      records.push({
+        month: currentDate.getMonth() + 1,
+        year: currentDate.getFullYear(),
+        feeAmount,
+      });
+      currentDate.setMonth(currentDate.getMonth() + 1);
+    }
+    return records;
+  };
+
+  const updateFeeData = async () => {
+    const feeRecords = generateFeeRecords(feesData.joinedDate, feesData.feePaidUntil, student.fee);
+    console.log('fee records.....', feeRecords)
+    const teacherData = await AsyncStorage.getItem("Teacherdata");
+    const teacher = JSON.parse(teacherData);
+    console.log('checking for server before---->', teacher, student.class)
+    try {
+      setLoading(true);
+      const response = await axios.post(`https://feebook-server.onrender.com/api/v1/teachers/update-joinedDate-and-Fees/${id}`, {
+        student,
+        Class: student.class,
+        teacher: teacher._id,
+        feeRecords,
+      });
+
+      const data = response.data;
+
+      if (!data.success) {
+        throw new Error(data.message || "Failed to update Fees details");
+      }
+
+      Alert.alert("Success", "Fees details updated successfully");
+      fetchStudentDetails();
+      setFeeFlag(false);
+    } catch (error) {
+      console.error("Error updating student fees:", error);
+      Alert.alert("Error", error.message || "Failed to update student fees");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const markStudentLeft = async () => {
     Alert.alert(
       "Confirm Action",
@@ -267,7 +395,7 @@ const StudentDetails = () => {
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ studentId: id, month, year}),
+          body: JSON.stringify({ studentId: id, month, year }),
         }
       );
 
@@ -282,7 +410,7 @@ const StudentDetails = () => {
           }
           return prev; // No change if already exists
         });
-        
+
         Alert.alert("Success", `Marked ${month} ${year} as UnPaid`);
       } else {
         Alert.alert("Error", result.message || "Failed to update fee record");
@@ -351,74 +479,124 @@ const StudentDetails = () => {
         onChangeText={(text) => setStudent({ ...student, fee: text })}
       />
 
-      <Text style={styles.dueText}>Joined On: {new Date(student.joinedDate).toLocaleDateString()}</Text>
+      {/* <Text style={styles.dueText}>Joined On: {new Date(student.joinedDate).toLocaleDateString()}</Text> */}
+
+      <View style={styles.joinRow}>
+        <Text style={styles.dueText}>
+          Joined On: {new Date(student.joinedDate).toLocaleDateString()}
+        </Text>
+        <TouchableOpacity onPress={() => setShowJoiningDatePicker(true)}>
+          <FontAwesome name="pencil" size={18} color="#555" style={{ marginLeft: 8, marginTop: -9 }} />
+        </TouchableOpacity>
+      </View>
+
+      {showJoiningDatePicker && (
+        <DateTimePicker
+          value={new Date(student.joinedDate)}
+          mode="date"
+          display="default"
+          onChange={(event, selectedDate) => {
+            setShowJoiningDatePicker(false);
+            if (selectedDate) {
+              setStudent({ ...student, joinedDate: selectedDate });
+              setFeesData({ ...feesData, joinedDate: selectedDate })
+              setShowFeePicker(true); // Immediately ask for fee month
+            }
+          }}
+        />
+      )}
+
+      {showFeePicker && (
+        <FeeMonthYearPicker
+          feesData={feesData}
+          setFeesData={(newData) => {
+            setFeesData(newData);
+            setFeeFlag(true);
+            setShowFeePicker(false);
+          }}
+          autoOpen={true} 
+        />
+      )}
+
+
+      {feeFlag && (
+        <>
+          <Text style={styles.dateText}>
+            Fee Paid Until: {monthNames[feesData.feePaidUntil?.getMonth()]} {feesData.feePaidUntil?.getFullYear()}
+          </Text>
+
+          <TouchableOpacity style={styles.saveButton} onPress={updateFeeData}>
+            <Text style={styles.buttonText}>Save Fees Data</Text>
+          </TouchableOpacity>
+        </>
+      )}
+
       <Text style={styles.dueText}>Total Due: {dueFee}</Text>
       {/* <Text style={styles.dueText}>{dueFeeText}</Text> */}
 
       <View style={styles.pickerContainer}>
-  <Picker
-    selectedValue={selectedFilter}
-    onValueChange={(value) => setSelectedFilter(value)}
-    style={styles.picker}
-    dropdownIconColor="#333" // for Android
-  >
-    <Picker.Item label="Unpaid Months" value="Unpaid" />
-    <Picker.Item label="Paid Months" value="Paid" />
-  </Picker>
-</View>
-
+        <Picker
+          selectedValue={selectedFilter}
+          onValueChange={(value) => setSelectedFilter(value)}
+          style={styles.picker}
+          dropdownIconColor="#333" // for Android
+        >
+          <Picker.Item label="Unpaid Months" value="Unpaid" />
+          <Picker.Item label="Paid Months" value="Paid" />
+        </Picker>
+      </View>
 
       <FlatList
         data={dataToShow}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <View
-          style={{
-            flexDirection: "row",
-            justifyContent: "space-between",
-            alignItems: "center",
-            padding: 15,
-            marginVertical: 8,
-            marginHorizontal: 10,
-            backgroundColor: "#e0f7fa", // Soft teal
-            borderRadius: 12,
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.1,
-            shadowRadius: 3,
-            elevation: 2,
-          }}
-        >
-          <Text style={{ fontSize: 16, color: "#00796b", fontWeight: "500" }}>
-            {`${item.month} ${item.year}`}
-          </Text>
-        
-          {selectedFilter === 'Unpaid' ? (
-            <TouchableOpacity
-              onPress={() => markAsPaid(item.month, item.year)}
-              style={{
-                backgroundColor: "#aed581", // Light green
-                paddingVertical: 6,
-                paddingHorizontal: 12,
-                borderRadius: 8,
-              }}
-            >
-              <Text style={{ color: "#33691e", fontWeight: "bold" }}>Mark as Paid</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              onPress={() => markAsUnPaid(item.month, item.year)}
-              style={{
-                backgroundColor: "#ef9a9a", // Light red
-                paddingVertical: 6,
-                paddingHorizontal: 12,
-                borderRadius: 8,
-              }}
-            >
-              <Text style={{ color: "#b71c1c", fontWeight: "bold" }}>Mark as UnPaid</Text>
-            </TouchableOpacity>
-          )}
-        </View>        
+            style={{
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              padding: 15,
+              marginVertical: 8,
+              marginHorizontal: 10,
+              backgroundColor: "#e0f7fa", // Soft teal
+              borderRadius: 12,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.1,
+              shadowRadius: 3,
+              elevation: 2,
+            }}
+          >
+            <Text style={{ fontSize: 16, color: "#00796b", fontWeight: "500" }}>
+              {`${item.month} ${item.year}`}
+            </Text>
+
+            {selectedFilter === 'Unpaid' ? (
+              <TouchableOpacity
+                onPress={() => markAsPaid(item.month, item.year)}
+                style={{
+                  backgroundColor: "#aed581", // Light green
+                  paddingVertical: 6,
+                  paddingHorizontal: 12,
+                  borderRadius: 8,
+                }}
+              >
+                <Text style={{ color: "#33691e", fontWeight: "bold" }}>Mark as Paid</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                onPress={() => markAsUnPaid(item.month, item.year)}
+                style={{
+                  backgroundColor: "#ef9a9a", // Light red
+                  paddingVertical: 6,
+                  paddingHorizontal: 12,
+                  borderRadius: 8,
+                }}
+              >
+                <Text style={{ color: "#b71c1c", fontWeight: "bold" }}>Mark as UnPaid</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         )}
         ListEmptyComponent={
           <Text style={{ textAlign: 'center', marginTop: 10, color: 'gray' }}>
@@ -513,5 +691,71 @@ const styles = StyleSheet.create({
     height: 50,
     paddingHorizontal: 10,
     color: '#333',
+  },
+  datePicker: {
+    width: "100%",
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: "#e3f2fd",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  dateText: {
+    fontSize: 16,
+    color: "#1976d2",
+    margin: 'auto'
+  },
+  joinRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  modalOverlay2: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContainer2: {
+    width: '85%',
+    maxHeight: '70%',
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+  },
+  modalTitle2: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  option: {
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    borderBottomWidth: 1,
+    borderColor: '#eee',
+  },
+  optionText: {
+    fontSize: 16,
+    color: '#444',
+  },
+  cancelButton: {
+    marginTop: 15,
+    backgroundColor: '#f44336',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cancelText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '500',
   },
 });

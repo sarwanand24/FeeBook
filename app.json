@@ -2,7 +2,7 @@
   "expo": {
     "name": "FeeBook",
     "slug": "FeeBook",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon2.png",
     "scheme": "myapp",
@@ -20,7 +20,8 @@
         "foregroundImage": "./assets/images/androidicon2.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.alexander_200424.FeeBook"
+      "package": "com.alexander_200424.FeeBook",
+      "versionCode": 2
     },
     "web": {
       "bundler": "metro",
